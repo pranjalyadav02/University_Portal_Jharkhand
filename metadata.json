@@ -1,0 +1,6 @@
+{
+  "name": "JanaSamadhan — University Innovation Platform",
+  "description": "Jharkhand Societal Challenge & Collaborative Innovation Platform for Universities and Higher Education Institutions (HEIs).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
