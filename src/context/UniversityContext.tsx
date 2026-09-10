@@ -171,6 +171,27 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
     isPilotSpecific?: boolean;
   } | null>(null);
 
+  // Backend API Sync on mount
+  React.useEffect(() => {
+    fetch('/api/v1/university/challenges')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setChallenges(res.data);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/v1/university/projects')
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setProjects(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const getUniversityMatchScore = (challenge: Challenge): number => {
     const match = challenge.matchBreakdown[selectedUniversity.id];
     return match ? match.overallScore : 78;
@@ -194,6 +215,14 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
       prev.map((c) => (c.id === challengeId ? { ...c, status: 'accepted' } : c))
     );
     addAuditLog('ACCEPTED_CHALLENGE', challengeId, `Institutional acceptance confirmed for ${challengeId}.`);
+    
+    // Sync to backend API
+    fetch(`/api/v1/university/challenges/${challengeId}/adopt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadFacultyId: 'fac-1' }),
+    }).catch(() => {});
+
     // Open AI team builder immediately to guide user
     setSelectedChallengeId(challengeId);
     setIsTeamBuilderModalOpen(true);
@@ -390,6 +419,14 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
       })
     );
     addAuditLog('ADVANCED_TRL', projectId, `TRL advanced to Level ${newTRL} with verified evidence.`);
+
+    // Sync to backend API
+    fetch(`/api/v1/university/projects/${projectId}/trl`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newTRL, notes: evidence.title }),
+    }).catch(() => {});
+
     return true;
   };
 
