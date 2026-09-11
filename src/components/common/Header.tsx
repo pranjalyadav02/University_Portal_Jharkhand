@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useUniversity } from '../../context/UniversityContext';
 import { UserRole, University } from '../../types';
+import { handlePortalLogout } from '../../utils/navigation';
 
 export const Header: React.FC = () => {
   const {
@@ -224,13 +225,13 @@ export const Header: React.FC = () => {
         </button>
 
         {/* Sign Out to Unified Login */}
-        <a
-          href="http://localhost:3000"
-          className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-          title="Sign Out / Switch Persona"
+        <button
+          onClick={handlePortalLogout}
+          className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+          title="Sign Out to JanaSamadhan Login Portal"
         >
           <LogOut className="w-4 h-4" />
-        </a>
+        </button>
 
         {/* Primary CTA Button: Identify Problems */}
         <button

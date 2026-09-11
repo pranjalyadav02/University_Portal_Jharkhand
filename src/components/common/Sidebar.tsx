@@ -18,8 +18,10 @@ import {
   Award,
   BookOpen,
   Calendar,
+  LogOut,
 } from 'lucide-react';
 import { useUniversity, NavigationTab } from '../../context/UniversityContext';
+import { handlePortalLogout } from '../../utils/navigation';
 
 interface NavItem {
   id: NavigationTab;
@@ -148,6 +150,15 @@ export const Sidebar: React.FC = () => {
             <span className="text-emerald-400 font-semibold">82% Load</span>
           </div>
         </div>
+
+        <button
+          onClick={handlePortalLogout}
+          className="w-full mt-3 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-rose-950/60 border border-slate-700/80 hover:border-rose-700/80 text-slate-300 hover:text-rose-200 text-xs font-semibold transition-all cursor-pointer shadow-xs"
+          title="Sign Out to JanaSamadhan Login Portal"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Exit to Login</span>
+        </button>
       </div>
     </aside>
   );
