@@ -138,7 +138,9 @@ const UniversityContext = createContext<UniversityContextType | undefined>(undef
 
 export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [selectedUniversity, setSelectedUniversity] = useState<University>(UNIVERSITIES[0]); // IIT ISM Dhanbad default
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('faculty');
+  const loginRole = new URLSearchParams(window.location.search).get('role');
+  const initialRole: UserRole = loginRole === 'leadership' || loginRole === 'faculty' || loginRole === 'student' ? loginRole : 'faculty';
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(initialRole);
   const [activeTab, setActiveTab] = useState<NavigationTab>('command_center');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -211,6 +213,10 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   const acceptChallenge = (challengeId: string) => {
+    if (currentUserRole !== 'leadership') {
+      addAuditLog('ACCESS_DENIED', challengeId, 'Only a Dean, Vice Dean, or other institutional leadership role can assign a new project.');
+      return;
+    }
     setChallenges((prev) =>
       prev.map((c) => (c.id === challengeId ? { ...c, status: 'accepted' } : c))
     );
