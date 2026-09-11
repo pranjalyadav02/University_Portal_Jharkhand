@@ -4,15 +4,8 @@ import {
   UserCheck,
   Search,
   Bell,
-  Sparkles,
-  PlayCircle,
   ChevronDown,
-  Layers,
-  Award,
-  AlertTriangle,
-  FileCheck,
-  Droplets,
-  ExternalLink,
+  Languages,
 } from 'lucide-react';
 import { useUniversity } from '../../context/UniversityContext';
 import { UserRole, University } from '../../types';
@@ -28,14 +21,15 @@ export const Header: React.FC = () => {
     setSearchQuery,
     notifications,
     markNotificationAsRead,
-    setIsResearchAssistantOpen,
-    setIsDemoGuideOpen,
     setActiveTab,
   } = useUniversity();
 
   const [isUniDropdownOpen, setIsUniDropdownOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState(false);
+  const [isHindi, setIsHindi] = useState(false);
+
+  const t = (en: string, hi: string) => isHindi ? hi : en;
 
   const unreadNotifs = notifications.filter((n) => !n.read);
 
@@ -78,10 +72,10 @@ export const Header: React.FC = () => {
       <div className="flex items-center space-x-4 min-w-0">
         <div>
           <h1 className="text-lg lg:text-xl font-bold text-slate-900 leading-snug">
-            University Command Center
+            {t('University Innovation Hub', 'विश्वविद्यालय नवाचार केंद्र')}
           </h1>
           <p className="text-xs text-slate-500 truncate">
-            {selectedUniversity.name} • Innovation Hub
+            {selectedUniversity.name} • {t('Innovation Hub', 'नवाचार केंद्र')}
           </p>
         </div>
 
@@ -266,12 +260,22 @@ export const Header: React.FC = () => {
           )}
         </div>
 
+        {/* Hindi Language Toggle */}
+        <button
+          onClick={() => setIsHindi(!isHindi)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold transition-colors shrink-0"
+          title={isHindi ? 'Switch to English' : 'हिंदी में देखें'}
+        >
+          <Languages className="w-3.5 h-3.5" />
+          {isHindi ? 'EN' : 'हि'}
+        </button>
+
         {/* Primary CTA Button from Design */}
         <button
-          onClick={() => setActiveTab('existing_solutions')}
+          onClick={() => setActiveTab('challenges_marketplace')}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors shrink-0"
         >
-          Deploy Solution
+          {t('Browse Challenges', 'चुनौतियाँ देखें')}
         </button>
       </div>
     </header>

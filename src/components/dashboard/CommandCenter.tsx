@@ -35,8 +35,6 @@ export const CommandCenter: React.FC = () => {
     setSelectedProjectId,
     setIsEvaluationModalOpen,
     setIsTeamBuilderModalOpen,
-    setIsDemoGuideOpen,
-    setDemoMode,
     getUniversityMatchScore,
   } = useUniversity();
 
@@ -44,7 +42,6 @@ export const CommandCenter: React.FC = () => {
   const activeProjectsCount = projects.length;
   const govChallengesCount = challenges.length;
   const projectsInPilot = projects.filter((p) => p.lifecycleStage === 'Field Pilot').length;
-  const socialImpactCount = '37.2k';
 
   // Sorted recommended challenges for this university
   const recommendedChallenges = [...challenges].sort(
@@ -67,7 +64,11 @@ export const CommandCenter: React.FC = () => {
             Active Projects
           </div>
           <div className="text-2xl font-bold text-slate-900 font-heading">{activeProjectsCount}</div>
-          <div className="text-[10px] text-emerald-600 mt-1 font-medium">+2 since last week</div>
+          {activeProjectsCount === 0 ? (
+            <div className="text-[10px] text-slate-400 mt-1">No projects yet</div>
+          ) : (
+            <div className="text-[10px] text-emerald-600 mt-1 font-medium">{activeProjectsCount} ongoing</div>
+          )}
         </div>
 
         {/* Gov Challenges */}
@@ -79,7 +80,7 @@ export const CommandCenter: React.FC = () => {
             Gov Challenges
           </div>
           <div className="text-2xl font-bold text-slate-900 font-heading">{govChallengesCount}</div>
-          <div className="text-[10px] text-blue-600 mt-1 font-medium">8 AI Matches found</div>
+          <div className="text-[10px] text-blue-600 mt-1 font-medium">Open for submissions</div>
         </div>
 
         {/* Field Pilots */}
@@ -90,20 +91,22 @@ export const CommandCenter: React.FC = () => {
           <div className="text-xs font-semibold text-slate-500 uppercase mb-1 tracking-wider">
             Field Pilots
           </div>
-          <div className="text-2xl font-bold text-slate-900 font-heading">0{projectsInPilot || 2}</div>
-          <div className="text-[10px] text-slate-500 mt-1">3 Pending Validation</div>
+          <div className="text-2xl font-bold text-slate-900 font-heading">{projectsInPilot}</div>
+          <div className="text-[10px] text-slate-500 mt-1">Active in field</div>
         </div>
 
-        {/* Social Impact */}
+        {/* Solutions Deployed */}
         <div
           onClick={() => setActiveTab('existing_solutions')}
           className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs hover:border-blue-300 hover:shadow-sm cursor-pointer transition-all"
         >
           <div className="text-xs font-semibold text-slate-500 uppercase mb-1 tracking-wider">
-            Social Impact
+            Solutions
           </div>
-          <div className="text-2xl font-bold text-slate-900 font-heading">{socialImpactCount}</div>
-          <div className="text-[10px] text-emerald-600 mt-1 font-medium">Citizens benefited</div>
+          <div className="text-2xl font-bold text-slate-900 font-heading">
+            {projects.filter(p => p.lifecycleStage === 'Deployed').length}
+          </div>
+          <div className="text-[10px] text-emerald-600 mt-1 font-medium">Deployed</div>
         </div>
       </div>
 
