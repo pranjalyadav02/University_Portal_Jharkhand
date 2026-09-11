@@ -34,39 +34,46 @@ interface NavSection {
 }
 
 export const Sidebar: React.FC = () => {
-  const { activeTab, setActiveTab, challenges, projects, lessonsLearned } = useUniversity();
+  const { activeTab, setActiveTab, challenges, assignedProjects, currentUserRole, lessonsLearned } = useUniversity();
 
   const activeChallengesCount = challenges.filter((c) => c.status !== 'rejected').length;
-  const activeProjectsCount = projects.length;
+  const activeProjectsCount = assignedProjects.length;
 
   const sections: NavSection[] = [
     {
-      title: 'Intelligence',
+      title: 'Overview',
       items: [
         { id: 'command_center', label: 'Command Center', icon: LayoutDashboard },
-        { id: 'challenges_marketplace', label: 'Marketplace', icon: Store, badge: activeChallengesCount },
-        { id: 'recommended_challenges', label: 'AI Matches', icon: Sparkles, badge: '8' },
-        { id: 'faculty_mentors', label: 'Talent Directory', icon: GraduationCap },
       ],
     },
     {
-      title: 'Active Execution',
+      title: 'Innovation Pipeline',
       items: [
-        { id: 'research_projects', label: 'Workspace', icon: FolderKanban, badge: activeProjectsCount },
-        { id: 'project_gantt', label: 'Pacing & GANTT', icon: Calendar },
-        { id: 'trl_tracker', label: 'TRL Tracker', icon: GitCommit },
-        { id: 'field_pilots', label: 'Field Pilots', icon: Radio, badge: '6' },
-        { id: 'collaboration_industry', label: 'Funding & CSR', icon: Handshake },
+        {
+          id: 'challenges_marketplace',
+          label: currentUserRole === 'leadership' ? '1. Identify Problems (Assign)' : '1. Identify Civic Problems',
+          icon: Store,
+          badge: activeChallengesCount,
+        },
+        {
+          id: 'research_projects',
+          label: currentUserRole === 'leadership' ? '2. University Projects' : '2. My Assigned Projects',
+          icon: FolderKanban,
+          badge: activeProjectsCount,
+        },
+        {
+          id: 'collaboration_industry',
+          label: '3. Industry & CSR Platform',
+          icon: Handshake,
+        },
       ],
     },
     {
-      title: 'Repository & Governance',
+      title: 'Talent & Knowledge',
       items: [
-        { id: 'lessons_learned', label: 'Lessons Learned', icon: BookOpen, badge: lessonsLearned.length },
-        { id: 'existing_solutions', label: 'Solutions Repository', icon: Library },
-        { id: 'accepted_challenges', label: 'Accepted by HEI', icon: CheckCircle2 },
-        { id: 'saved_challenges', label: 'Saved Challenges', icon: Bookmark },
-        { id: 'audit_logs', label: 'Audit & Compliance', icon: ShieldCheck },
+        { id: 'faculty_mentors', label: 'Talent Roster', icon: GraduationCap },
+        { id: 'lessons_learned', label: 'Lessons Learned Archive', icon: BookOpen, badge: lessonsLearned.length },
+        { id: 'audit_logs', label: 'Audit & Governance', icon: ShieldCheck },
       ],
     },
   ];

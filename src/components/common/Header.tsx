@@ -5,6 +5,9 @@ import {
   Bell,
   ChevronDown,
   Languages,
+  ShieldCheck,
+  LogOut,
+  User,
 } from 'lucide-react';
 import { useUniversity } from '../../context/UniversityContext';
 import { UserRole, University } from '../../types';
@@ -15,7 +18,8 @@ export const Header: React.FC = () => {
     setSelectedUniversity,
     universities,
     currentUserRole,
-    setCurrentUserRole,
+    currentUserName,
+    currentUserEmail,
     searchQuery,
     setSearchQuery,
     notifications,
@@ -33,19 +37,19 @@ export const Header: React.FC = () => {
 
   const roleLabels: Record<UserRole, { label: string; badge: string; desc: string }> = {
     leadership: {
-      label: 'Vice Chancellor / Leadership',
+      label: 'Dean / Vice Dean (Institutional Leadership)',
       badge: 'bg-purple-100 text-purple-800 border-purple-200',
-      desc: 'Institutional oversight, approvals & impact metrics',
+      desc: 'Can assign projects to faculty/students, sanction budgets & governance',
     },
     faculty: {
-      label: 'Faculty Mentor / PI',
+      label: 'Professor / Lead Faculty PI',
       badge: 'bg-blue-100 text-blue-800 border-blue-200',
-      desc: 'Challenge evaluation, team mentorship & TRL review',
+      desc: 'Works on assigned projects, drafts scope/budget & submits to industry',
     },
     student: {
       label: 'Student Researcher',
       badge: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      desc: 'Task execution, prototyping & lab testing',
+      desc: 'Works on assigned project tasks, prototypes & lab testing',
     },
     innovation: {
       label: 'Incubation & IPR Head',
@@ -144,36 +148,30 @@ export const Header: React.FC = () => {
       </div>
 
       {/* Right Controls: Avatars Stack + Role Switcher + Primary Action */}
-      <div className="flex items-center space-x-4 lg:space-x-6">
-        {/* Avatars Stack from Design */}
-        <div className="hidden sm:flex -space-x-2 items-center">
+      {/* Right Controls: Verified User Profile Pill + Notifications + Language Toggle + Primary Action */}
+      <div className="flex items-center space-x-3 lg:space-x-4">
+        {/* Authenticated Institutional Identity Pill (Role Locked) */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs">
           <div
-            className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-800 shadow-2xs cursor-pointer"
-            title="Dr. Arjan Mehta (Lead PI)"
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-xs shrink-0 ${
+              currentUserRole === 'leadership'
+                ? 'bg-purple-600'
+                : currentUserRole === 'student'
+                ? 'bg-emerald-600'
+                : 'bg-blue-600'
+            }`}
           >
-            AM
+            {currentUserName.slice(0, 2).toUpperCase()}
           </div>
-          <div
-            className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-emerald-800 shadow-2xs cursor-pointer"
-            title="Sarah Chen (ML Eng)"
-          >
-            SC
+          <div className="hidden sm:block text-left min-w-0">
+            <div className="text-xs font-bold text-slate-900 leading-tight flex items-center gap-1 truncate">
+              <span>{currentUserName}</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" title="Role verified by login credentials" />
+            </div>
+            <div className="text-[10px] text-slate-500 font-semibold truncate">
+              {roleLabels[currentUserRole].label}
+            </div>
           </div>
-          <div
-            className="w-8 h-8 rounded-full bg-purple-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-purple-800 shadow-2xs cursor-pointer"
-            title="Vijay Kumar (IoT Arch)"
-          >
-            VK
-          </div>
-          <div
-            className="w-8 h-8 rounded-full bg-amber-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-amber-800 shadow-2xs cursor-pointer"
-            title="+4 Researchers"
-          >
-            +4
-          </div>
-        </div>        {/* Signed-in role; permissions come from login and cannot be changed here. */}
-        <div className={`hidden lg:flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${roleLabels[currentUserRole].badge}`} title="Role assigned at sign-in">
-          <span>{roleLabels[currentUserRole].label}</span>
         </div>
 
         {/* Notification Bell */}
@@ -218,19 +216,28 @@ export const Header: React.FC = () => {
         {/* Hindi Language Toggle */}
         <button
           onClick={() => setIsHindi(!isHindi)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold transition-colors shrink-0"
           title={isHindi ? 'Switch to English' : 'हिंदी में देखें'}
         >
           <Languages className="w-3.5 h-3.5" />
           {isHindi ? 'EN' : 'हि'}
         </button>
 
-        {/* Primary CTA Button from Design */}
+        {/* Sign Out to Unified Login */}
+        <a
+          href="http://localhost:3000"
+          className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+          title="Sign Out / Switch Persona"
+        >
+          <LogOut className="w-4 h-4" />
+        </a>
+
+        {/* Primary CTA Button: Identify Problems */}
         <button
           onClick={() => setActiveTab('challenges_marketplace')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors shrink-0"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors shrink-0 hidden md:block"
         >
-          {t('Browse Challenges', 'चुनौतियाँ देखें')}
+          {t('1. Identify Problems', '१. समस्याएँ पहचानें')}
         </button>
       </div>
     </header>

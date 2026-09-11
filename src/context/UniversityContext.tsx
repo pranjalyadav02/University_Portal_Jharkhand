@@ -13,6 +13,10 @@ import {
   AuditLogItem,
   TRLEvidence,
   LessonLearned,
+  BudgetItem,
+  ProjectScopeReport,
+  IndustryProposal,
+  IndustryEOI,
 } from '../types';
 import {
   UNIVERSITIES,
@@ -60,7 +64,8 @@ interface UniversityContextType {
   selectedUniversity: University;
   setSelectedUniversity: (uni: University) => void;
   currentUserRole: UserRole;
-  setCurrentUserRole: (role: UserRole) => void;
+  currentUserName: string;
+  currentUserEmail: string;
 
   // Navigation
   activeTab: NavigationTab;
@@ -72,6 +77,7 @@ interface UniversityContextType {
   universities: University[];
   challenges: Challenge[];
   projects: Project[];
+  assignedProjects: Project[];
   facultyMembers: FacultyMember[];
   students: Student[];
   labs: UniversityLab[];
@@ -121,6 +127,22 @@ interface UniversityContextType {
   rejectChallenge: (challengeId: string, reason: string) => void;
   toggleSaveChallenge: (challengeId: string) => void;
   createProjectFromChallenge: (challengeId: string, teamData?: any) => string;
+  assignProjectByDean: (
+    challengeId: string,
+    assignment: {
+      leadFaculty: string;
+      coMentors: string[];
+      studentLeads: string[];
+      initialBudget: string;
+      targetDeadline?: string;
+    }
+  ) => string;
+  updateProjectScopeAndBudget: (
+    projectId: string,
+    scopeReport: ProjectScopeReport,
+    itemizedBudget: BudgetItem[]
+  ) => void;
+  dispatchToIndustryPlatform: (projectId: string, corporateSponsorshipTarget?: number) => void;
   advanceProjectTRL: (projectId: string, newTRL: number, evidence: Omit<TRLEvidence, 'trlLevel' | 'status'>) => boolean;
   toggleTaskStatus: (projectId: string, taskId: string) => void;
   bookEquipment: (equipmentId: string, projectId: string) => void;
@@ -138,9 +160,44 @@ const UniversityContext = createContext<UniversityContextType | undefined>(undef
 
 export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [selectedUniversity, setSelectedUniversity] = useState<University>(UNIVERSITIES[0]); // IIT ISM Dhanbad default
-  const loginRole = new URLSearchParams(window.location.search).get('role');
-  const initialRole: UserRole = loginRole === 'leadership' || loginRole === 'faculty' || loginRole === 'student' ? loginRole : 'faculty';
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(initialRole);
+
+  // Authentication & Persona Lock from login credentials / URL params
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const paramRole = params.get('role');
+  const paramEmail = params.get('email');
+  const paramName = params.get('name');
+
+  const savedRole = typeof window !== 'undefined' ? (sessionStorage.getItem('uni_role') as UserRole | null) : null;
+  const savedEmail = typeof window !== 'undefined' ? sessionStorage.getItem('uni_email') : null;
+  const savedName = typeof window !== 'undefined' ? sessionStorage.getItem('uni_name') : null;
+
+  const initialRole: UserRole = (paramRole === 'leadership' || paramRole === 'faculty' || paramRole === 'student')
+    ? paramRole
+    : (savedRole === 'leadership' || savedRole === 'faculty' || savedRole === 'student' ? savedRole : 'faculty');
+
+  const initialEmail: string = paramEmail || savedEmail || (
+    initialRole === 'leadership' ? 'dean@ism.ac.in' :
+    initialRole === 'student' ? 'student.aakash@ism.ac.in' :
+    'prof.anurag@ism.ac.in'
+  );
+
+  const initialName: string = paramName || savedName || (
+    initialRole === 'leadership' ? 'Prof. Rajiv Shekhar (Dean R&D)' :
+    initialRole === 'student' ? 'Aakash Verma (M.Tech Researcher)' :
+    'Prof. (Dr.) Anurag Bhattacharya (Faculty PI)'
+  );
+
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('uni_role', initialRole);
+    sessionStorage.setItem('uni_email', initialEmail);
+    sessionStorage.setItem('uni_name', initialName);
+  }
+
+  // Persona role is strictly decided by login credentials - no in-app switching!
+  const [currentUserRole] = useState<UserRole>(initialRole);
+  const [currentUserName] = useState<string>(initialName);
+  const [currentUserEmail] = useState<string>(initialEmail);
+
   const [activeTab, setActiveTab] = useState<NavigationTab>('command_center');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -155,8 +212,37 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
   const [notifications, setNotifications] = useState<NotificationItem[]>(NOTIFICATIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(AUDIT_LOGS);
 
+  // Projects strictly assigned to the current user's authenticated identity
+  const assignedProjects = useMemo(() => {
+    if (currentUserRole === 'leadership') {
+      // Deans and Vice Deans have institutional oversight of all projects
+      return projects;
+    }
+    if (currentUserRole === 'student') {
+      // Students only work on projects where they are in studentLeads
+      return projects.filter((p) =>
+        p.studentLeads.some((s) => s.toLowerCase().includes('aakash') || s.toLowerCase().includes(currentUserName.toLowerCase()))
+      );
+    }
+    // Faculty PI works only on projects where they are Lead Faculty or Co-Mentor
+    return projects.filter((p) =>
+      p.leadFaculty.toLowerCase().includes('anurag') ||
+      p.leadFaculty.toLowerCase().includes(currentUserName.toLowerCase()) ||
+      p.coMentors.some((m) => m.toLowerCase().includes('anurag') || m.toLowerCase().includes(currentUserName.toLowerCase()))
+    );
+  }, [projects, currentUserRole, currentUserName]);
+
   const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(PROJECTS[0].id);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+    return assignedProjects[0]?.id || PROJECTS[0].id;
+  });
+
+  // Ensure selected project is always within user's assigned projects
+  React.useEffect(() => {
+    if (assignedProjects.length > 0 && !assignedProjects.some((p) => p.id === selectedProjectId)) {
+      setSelectedProjectId(assignedProjects[0].id);
+    }
+  }, [assignedProjects, selectedProjectId]);
 
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState<boolean>(false);
   const [isTeamBuilderModalOpen, setIsTeamBuilderModalOpen] = useState<boolean>(false);
@@ -297,6 +383,39 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
         remaining: '₹13,50,000',
         source: challenge.fundingAvailable,
       },
+      scopeReport: {
+        problemDiagnosis: challenge.description,
+        objectives: [
+          `Develop scalable, field-ready prototype to address ${challenge.title.slice(0, 40)}`,
+          `Validate telemetry and hardware robustness under rural ${challenge.location.district} field conditions`,
+          `Prepare comprehensive report and dispatch to industry for CSR co-funding`,
+        ],
+        scopeOfWork: `Phase 1: Lab prototyping and mathematical modeling. Phase 2: Benchtop pilot testing. Phase 3: Village field trials in ${challenge.location.district}.`,
+        technicalMethodology: challenge.possibleMethodologies?.join('. ') || 'Benchtop experimental prototyping and IoT telemetry integration.',
+        deliverables: [
+          'Hardware / Software Functional Prototype',
+          'NABL Certified Lab Validation Report',
+          'Industry Co-funding Dossier',
+          'Field Pilot Deployment Telemetry',
+        ],
+        targetBeneficiaries: `${challenge.affectedPopulation.toLocaleString()} citizens in ${challenge.location.district} district.`,
+        status: 'Draft',
+        lastUpdated: new Date().toISOString().split('T')[0],
+      },
+      itemizedBudget: [
+        { id: 'b-1', category: 'Capital Equipment', item: 'Lab Sensors & Testing Instrumentation', amount: 350000, justification: 'Precision test bench calibration and prototype hardware.' },
+        { id: 'b-2', category: 'Consumables & Hardware', item: 'Components, Microcontrollers & Enclosures', amount: 280000, justification: 'PCB fabrication, sensors, and weatherproof casings.' },
+        { id: 'b-3', category: 'Field Trials & Testing', item: 'District Site Deployment & Transportation', amount: 350000, justification: `Field trips to ${challenge.location.district}, village installations, and telemetry verification.` },
+        { id: 'b-4', category: 'Researcher Stipends & Manpower', item: 'Student Research Fellowships (6 Months)', amount: 280000, justification: 'Stipends for graduate student researchers allocated to the project.' },
+        { id: 'b-5', category: 'Institutional Overhead & Contingency', item: 'Contingency, SIM Connectivity & Consumables', amount: 140000, justification: 'Institutional infrastructure, cloud telemetry, and unexpected component costs.' },
+      ],
+      industryProposal: {
+        status: 'Under Preparation',
+        totalBudgetRequested: 1400000,
+        corporateSponsorshipTarget: 1000000,
+        executiveSummary: `${selectedUniversity.name} research initiative targeting ${challenge.domain} in ${challenge.location.district}. Complete project report and scope prepared for corporate CSR/R&D sponsorship.`,
+        expressionsOfInterest: [],
+      },
       milestones: [
         {
           id: 'M-1',
@@ -391,6 +510,275 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
     setActiveTab('research_projects');
     addAuditLog('CREATED_PROJECT', newProjectId, `Project ${newProjectId} initialized from ${challengeId}.`);
     return newProjectId;
+  };
+
+  const assignProjectByDean = (
+    challengeId: string,
+    assignment: {
+      leadFaculty: string;
+      coMentors: string[];
+      studentLeads: string[];
+      initialBudget: string;
+      targetDeadline?: string;
+    }
+  ): string => {
+    if (currentUserRole !== 'leadership') {
+      addAuditLog('ACCESS_DENIED', challengeId, 'Only a Dean or Vice Dean can assign new projects.');
+      return '';
+    }
+    const challenge = challenges.find((c) => c.id === challengeId);
+    if (!challenge) return '';
+
+    const newProjectId = `PR-2026-00${Math.floor(50 + Math.random() * 40)}`;
+    const budgetNum = parseInt(assignment.initialBudget.replace(/[^0-9]/g, '')) || 1400000;
+
+    const newProject: Project = {
+      id: newProjectId,
+      challengeId: challenge.id,
+      title: `${challenge.title.split(':')[0] || challenge.title} — Innovation Initiative`,
+      domain: challenge.domain,
+      universityId: selectedUniversity.id,
+      leadFaculty: assignment.leadFaculty || 'Prof. (Dr.) Anurag Bhattacharya',
+      coMentors: assignment.coMentors.length > 0 ? assignment.coMentors : ['Dr. Shalini Mukhopadhyay'],
+      studentLeads: assignment.studentLeads.length > 0 ? assignment.studentLeads : ['Aakash Verma', 'Pooja Murmu'],
+      teamId: `TM-${Math.floor(100 + Math.random() * 900)}`,
+      teamSize: (assignment.studentLeads.length || 2) + (assignment.coMentors.length || 1) + 1,
+      currentTRL: 2,
+      trlHistory: [
+        {
+          trlLevel: 1,
+          title: 'Basic Principles Observed & Synthesized',
+          description: `Problem statement synthesized from verified government challenge baseline in ${challenge.location.district}.`,
+          approvedBy: currentUserName,
+          approvalRole: 'Dean / Institutional Leadership',
+          approvalDate: new Date().toISOString().split('T')[0],
+          documentRef: `DOC-${newProjectId}-TRL1-DEAN-SANCTION.pdf`,
+          status: 'Approved',
+        },
+        {
+          trlLevel: 2,
+          title: 'Project Assigned & Multidisciplinary Concept Formulated',
+          description: `Assigned to Lead PI ${assignment.leadFaculty}. Team architecture established.`,
+          approvedBy: assignment.leadFaculty,
+          approvalRole: 'Lead Faculty Mentor',
+          approvalDate: new Date().toISOString().split('T')[0],
+          documentRef: `DOC-${newProjectId}-TRL2-CHARTER.pdf`,
+          status: 'Approved',
+        },
+      ],
+      status: 'Research',
+      lifecycleStage: 'Research',
+      progressPercentage: 22,
+      funding: {
+        totalBudget: `₹${budgetNum.toLocaleString('en-IN')}`,
+        sanctioned: `₹${Math.round(budgetNum * 0.35).toLocaleString('en-IN')}`,
+        received: `₹${Math.round(budgetNum * 0.25).toLocaleString('en-IN')}`,
+        expended: '₹45,000',
+        remaining: `₹${Math.round(budgetNum * 0.95).toLocaleString('en-IN')}`,
+        source: challenge.fundingAvailable,
+      },
+      scopeReport: {
+        problemDiagnosis: challenge.description,
+        objectives: [
+          `Develop scalable, field-ready prototype to address ${challenge.title.slice(0, 40)}`,
+          `Validate telemetry and hardware robustness under rural ${challenge.location.district} field conditions`,
+          `Prepare comprehensive report and dispatch to industry for CSR co-funding`,
+        ],
+        scopeOfWork: `Phase 1: Lab prototyping and mathematical modeling. Phase 2: Benchtop pilot testing. Phase 3: Village field trials in ${challenge.location.district}.`,
+        technicalMethodology: challenge.possibleMethodologies?.join('. ') || 'Benchtop experimental prototyping and IoT telemetry integration.',
+        deliverables: [
+          'Hardware / Software Functional Prototype',
+          'NABL Certified Lab Validation Report',
+          'Industry Co-funding Dossier',
+          'Field Pilot Deployment Telemetry',
+        ],
+        targetBeneficiaries: `${challenge.affectedPopulation.toLocaleString()} citizens in ${challenge.location.district} district.`,
+        status: 'Draft',
+        lastUpdated: new Date().toISOString().split('T')[0],
+      },
+      itemizedBudget: [
+        { id: 'b-1', category: 'Capital Equipment', item: 'Lab Sensors & Testing Instrumentation', amount: Math.round(budgetNum * 0.25), justification: 'Precision test bench calibration and prototype hardware.' },
+        { id: 'b-2', category: 'Consumables & Hardware', item: 'Components, Microcontrollers & Enclosures', amount: Math.round(budgetNum * 0.20), justification: 'PCB fabrication, sensors, and weatherproof casings.' },
+        { id: 'b-3', category: 'Field Trials & Testing', item: 'District Site Deployment & Transportation', amount: Math.round(budgetNum * 0.25), justification: `Field trips to ${challenge.location.district}, village installations, and telemetry verification.` },
+        { id: 'b-4', category: 'Researcher Stipends & Manpower', item: 'Student Research Fellowships (6 Months)', amount: Math.round(budgetNum * 0.20), justification: 'Stipends for graduate student researchers allocated to the project.' },
+        { id: 'b-5', category: 'Institutional Overhead & Contingency', item: 'Contingency, SIM Connectivity & Consumables', amount: Math.round(budgetNum * 0.10), justification: 'Institutional infrastructure, cloud telemetry, and unexpected component costs.' },
+      ],
+      industryProposal: {
+        status: 'Under Preparation',
+        totalBudgetRequested: budgetNum,
+        corporateSponsorshipTarget: Math.round(budgetNum * 0.7),
+        executiveSummary: `${selectedUniversity.name} research initiative targeting ${challenge.domain} in ${challenge.location.district}. Complete project report and scope prepared for corporate CSR/R&D sponsorship.`,
+        expressionsOfInterest: [],
+      },
+      milestones: [
+        {
+          id: 'M-1',
+          title: 'Literature Review & Baseline Sensor Formulation',
+          targetDate: '2026-10-30',
+          trlTarget: 3,
+          status: 'In Progress',
+          fundingTranche: 'Tranche 1 (25%)',
+          fundingPercentage: 25,
+          isUnlocked: true,
+          deliverables: ['Research benchmark document', 'Lab test rig blueprint'],
+        },
+        {
+          id: 'M-2',
+          title: 'Benchtop Prototype & Lab Validation',
+          targetDate: '2026-11-30',
+          trlTarget: 4,
+          status: 'Upcoming',
+          fundingTranche: 'Tranche 2 (30%)',
+          fundingPercentage: 30,
+          isUnlocked: false,
+          deliverables: ['Component calibration', 'Lab test report'],
+        },
+        {
+          id: 'M-3',
+          title: 'Controlled Field Environment Demonstration',
+          targetDate: '2026-12-30',
+          trlTarget: 6,
+          status: 'Upcoming',
+          fundingTranche: 'Tranche 3 (25%)',
+          fundingPercentage: 25,
+          isUnlocked: false,
+          deliverables: ['Field test node', 'Data logging'],
+        },
+      ],
+      tasks: [
+        {
+          id: 'TSK-01',
+          title: 'Finalize component BOM and order telemetry transceivers',
+          assignee: assignment.studentLeads[0] || 'Aakash Verma',
+          dueDate: '2026-09-20',
+          status: 'in_progress',
+          priority: 'High',
+          tags: ['Hardware', 'Procurement'],
+        },
+        {
+          id: 'TSK-02',
+          title: 'Collect ground truth samples and survey site in pilot district',
+          assignee: assignment.studentLeads[1] || 'Pooja Murmu',
+          dueDate: '2026-09-25',
+          status: 'todo',
+          priority: 'High',
+          tags: ['Fieldwork', 'Baseline'],
+        },
+      ],
+      prototypes: [
+        {
+          version: 'v0.1-spec',
+          name: 'System Architecture Document',
+          type: 'Software',
+          releaseDate: new Date().toISOString().split('T')[0],
+          notes: 'Initial conceptual block diagram and sensor pinouts.',
+          status: 'Lab Testing',
+        },
+      ],
+      industryPartners: [],
+      risks: [],
+      iprStatus: {
+        type: 'Under Prep',
+        title: `Novel System for ${challenge.title.slice(0, 45)}`,
+      },
+      publications: [],
+      communityValidationScore: 78,
+    };
+
+    setProjects((prev) => [newProject, ...prev]);
+    setChallenges((prev) =>
+      prev.map((c) => (c.id === challengeId ? { ...c, status: 'in_project' } : c))
+    );
+    setSelectedProjectId(newProjectId);
+    setActiveTab('research_projects');
+    addAuditLog('ASSIGNED_PROJECT', newProjectId, `Project ${newProjectId} officially assigned to ${assignment.leadFaculty} by Dean.`);
+    return newProjectId;
+  };
+
+  const updateProjectScopeAndBudget = (
+    projectId: string,
+    scopeReport: ProjectScopeReport,
+    itemizedBudget: BudgetItem[]
+  ) => {
+    const totalCalc = itemizedBudget.reduce((sum, b) => sum + (b.amount || 0), 0);
+    const formattedTotal = `₹${totalCalc.toLocaleString('en-IN')}`;
+
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          scopeReport,
+          itemizedBudget,
+          funding: {
+            ...p.funding,
+            totalBudget: formattedTotal,
+          },
+          industryProposal: p.industryProposal
+            ? {
+                ...p.industryProposal,
+                totalBudgetRequested: totalCalc,
+              }
+            : undefined,
+        };
+      })
+    );
+
+    addAuditLog('UPDATED_SCOPE_BUDGET', projectId, `Scope report and itemized budget (${formattedTotal}) updated.`);
+
+    // Sync to backend
+    fetch(`/api/v1/university/projects/${projectId}/report`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scopeReport, itemizedBudget }),
+    }).catch(() => {});
+  };
+
+  const dispatchToIndustryPlatform = (projectId: string, corporateSponsorshipTarget?: number) => {
+    const proj = projects.find((p) => p.id === projectId);
+    if (!proj) return;
+
+    const budgetNum = proj.itemizedBudget?.reduce((s, b) => s + (b.amount || 0), 0) || 1450000;
+    const target = corporateSponsorshipTarget || Math.round(budgetNum * 0.7);
+
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id !== projectId) return p;
+        const currentProposal = p.industryProposal || {
+          status: 'Sent to Industry Platform',
+          dispatchedAt: new Date().toISOString().split('T')[0],
+          totalBudgetRequested: budgetNum,
+          corporateSponsorshipTarget: target,
+          executiveSummary: p.scopeReport?.scopeOfWork || p.title,
+          expressionsOfInterest: [],
+        };
+        return {
+          ...p,
+          industryProposal: {
+            ...currentProposal,
+            status: 'Sent to Industry Platform',
+            dispatchedAt: new Date().toISOString().split('T')[0],
+            corporateSponsorshipTarget: target,
+          },
+        };
+      })
+    );
+
+    addAuditLog(
+      'DISPATCHED_TO_INDUSTRY',
+      projectId,
+      `Detailed Project Report & Itemized Budget dispatched to Industry Platform for corporate sponsorship.`
+    );
+
+    fetch(`/api/v1/university/projects/${projectId}/dispatch-industry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        corporateSponsorshipTarget: target,
+        universityId: selectedUniversity.id,
+        universityName: selectedUniversity.name,
+      }),
+    }).catch(() => {});
   };
 
   const advanceProjectTRL = (
@@ -606,7 +994,8 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
         selectedUniversity,
         setSelectedUniversity,
         currentUserRole,
-        setCurrentUserRole,
+        currentUserName,
+        currentUserEmail,
         activeTab,
         setActiveTab,
         searchQuery,
@@ -614,6 +1003,7 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
         universities: UNIVERSITIES,
         challenges,
         projects,
+        assignedProjects,
         facultyMembers,
         students,
         labs,
@@ -645,6 +1035,9 @@ export const UniversityProvider: React.FC<{ children: ReactNode }> = ({ children
         rejectChallenge,
         toggleSaveChallenge,
         createProjectFromChallenge,
+        assignProjectByDean,
+        updateProjectScopeAndBudget,
+        dispatchToIndustryPlatform,
         advanceProjectTRL,
         toggleTaskStatus,
         bookEquipment,

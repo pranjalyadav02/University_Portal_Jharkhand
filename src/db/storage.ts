@@ -213,6 +213,109 @@ class UniversityStorageEngine {
     return this.data.lessons;
   }
 
+  public updateProjectReportAndBudget(id: string, scopeReport: any, itemizedBudget: any) {
+    const target = this.getProjectById(id);
+    if (!target) return undefined;
+    target.scopeReport = scopeReport;
+    target.itemizedBudget = itemizedBudget;
+    target.updatedAt = new Date().toISOString();
+    this.saveData();
+    return target;
+  }
+
+  public dispatchProjectToIndustry(id: string, sponsorshipTarget: number, universityInfo: any) {
+    const target = this.getProjectById(id);
+    if (!target) return undefined;
+
+    if (!target.industryProposal) {
+      target.industryProposal = {
+        status: 'Sent to Industry Platform',
+        dispatchedAt: new Date().toISOString().split('T')[0],
+        totalBudgetRequested: target.funding?.totalBudget || '₹14,50,000',
+        corporateSponsorshipTarget: sponsorshipTarget || 1000000,
+        executiveSummary: target.scopeReport?.scopeOfWork || target.title,
+        expressionsOfInterest: []
+      };
+    } else {
+      target.industryProposal.status = 'Sent to Industry Platform';
+      target.industryProposal.dispatchedAt = new Date().toISOString().split('T')[0];
+      target.industryProposal.corporateSponsorshipTarget = sponsorshipTarget || 1000000;
+    }
+    target.updatedAt = new Date().toISOString();
+    this.saveData();
+
+    // Cross-sync with shared_data/industry_store.json
+    try {
+      const industryFile = path.join(SHARED_DIR, 'industry_store.json');
+      if (fs.existsSync(industryFile)) {
+        const indData = JSON.parse(fs.readFileSync(industryFile, 'utf-8'));
+        if (Array.isArray(indData.opportunities)) {
+          const existingIdx = indData.opportunities.findIndex((o: any) => o.id === target.id);
+          const challenge = this.data.challenges.find(c => c.id === target.challengeId);
+          const budgetNum = typeof target.funding?.totalBudget === 'number'
+            ? target.funding.totalBudget
+            : parseInt(String(target.funding?.totalBudget || '1450000').replace(/[^0-9]/g, '')) || 1450000;
+
+          const oppObj = {
+            id: target.id,
+            challengeRefId: target.challengeId,
+            title: target.title,
+            type: 'University Project',
+            domain: target.domain,
+            district: challenge?.location?.district || 'Gumla',
+            block: challenge?.location?.block || 'Raidih',
+            village: challenge?.location?.panchayat || 'Bakhratoli',
+            university: universityInfo?.universityName || 'IIT (ISM) Dhanbad',
+            facultyLead: target.leadFaculty,
+            studentTeamCount: target.teamSize || 6,
+            govtDepartment: challenge?.govtDepartment || 'Drinking Water & Sanitation Dept',
+            trl: target.currentTRL || 4,
+            currentStage: target.lifecycleStage || 'Field Pilot',
+            fundingRequired: budgetNum,
+            fundingCommitted: Math.round(budgetNum * 0.4),
+            beneficiaries: challenge?.affectedPopulation || 18400,
+            deadline: challenge?.targetDeadline || '2026-11-30',
+            matchScore: 94,
+            problemStatement: target.scopeReport?.problemDiagnosis || challenge?.description || target.title,
+            solutionOverview: target.scopeReport?.technicalMethodology || challenge?.summary || target.title,
+            techStack: challenge?.matchBreakdown?.[universityInfo?.universityId || 'iit-ism-dhanbad']?.suggestedTechnologies || ['IoT', 'LoRaWAN', 'Electrochemical Sensing'],
+            readiness: {
+              technology: 88,
+              manufacturing: 75,
+              cost: 82,
+              regulatory: 78,
+              infrastructure: 85,
+              government: 90,
+              community: 88,
+              overall: 84
+            },
+            pilotReady: true,
+            csrEligible: true,
+            communityValidationScore: 90,
+            milestones: (target.milestones || []).map((m: any) => ({
+              name: m.title,
+              stage: target.lifecycleStage || 'Research',
+              amount: Math.round(budgetNum * ((m.fundingPercentage || 25) / 100)),
+              completed: m.status === 'Completed',
+              verificationEvidence: m.deliverables?.join(', ')
+            }))
+          };
+
+          if (existingIdx >= 0) {
+            indData.opportunities[existingIdx] = { ...indData.opportunities[existingIdx], ...oppObj };
+          } else {
+            indData.opportunities.unshift(oppObj);
+          }
+          fs.writeFileSync(industryFile, JSON.stringify(indData, null, 2), 'utf-8');
+        }
+      }
+    } catch (err) {
+      console.warn('Could not sync to industry_store.json:', err);
+    }
+
+    return target;
+  }
+
   public addLesson(lesson: any) {
     const newLesson = {
       id: `les-${Date.now()}`,

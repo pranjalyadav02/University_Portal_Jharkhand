@@ -76,6 +76,32 @@ async function startServer() {
     }
   });
 
+  app.patch("/api/v1/university/projects/:id/report", (req, res) => {
+    try {
+      const { scopeReport, itemizedBudget } = req.body;
+      const updated = universityStorage.updateProjectReportAndBudget(req.params.id, scopeReport, itemizedBudget);
+      if (!updated) return res.status(404).json({ success: false, error: "Project not found" });
+      res.json({ success: true, data: updated });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post("/api/v1/university/projects/:id/dispatch-industry", (req, res) => {
+    try {
+      const { corporateSponsorshipTarget, universityId, universityName } = req.body;
+      const updated = universityStorage.dispatchProjectToIndustry(
+        req.params.id,
+        corporateSponsorshipTarget ? parseInt(corporateSponsorshipTarget) : 1000000,
+        { universityId, universityName }
+      );
+      if (!updated) return res.status(404).json({ success: false, error: "Project not found" });
+      res.json({ success: true, data: updated });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
   // Labs & Equipment
   app.get("/api/v1/university/labs", (req, res) => {
     try {

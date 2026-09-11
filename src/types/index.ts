@@ -289,6 +289,48 @@ export interface ProjectRisk {
   status: 'Active Alert' | 'Mitigated';
 }
 
+export interface BudgetItem {
+  id: string;
+  category: 'Capital Equipment' | 'Consumables & Hardware' | 'Field Trials & Testing' | 'Researcher Stipends & Manpower' | 'Institutional Overhead & Contingency';
+  item: string;
+  amount: number; // In INR
+  justification: string;
+}
+
+export interface ProjectScopeReport {
+  problemDiagnosis: string;
+  objectives: string[];
+  scopeOfWork: string;
+  technicalMethodology: string;
+  deliverables: string[];
+  targetBeneficiaries: string;
+  status: 'Draft' | 'Finalized' | 'Approved by Dean';
+  lastUpdated: string;
+}
+
+export interface IndustryEOI {
+  id: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  pledgedAmount: number;
+  mode: 'CSR Funding' | 'Technology Co-Development' | 'Deployment & Manufacturing Partner';
+  contactPerson: string;
+  contactEmail: string;
+  message: string;
+  date: string;
+  status: 'Received' | 'Discussion Scheduled' | 'MoA Finalized';
+}
+
+export interface IndustryProposal {
+  status: 'Not Submitted' | 'Under Preparation' | 'Sent to Industry Platform' | 'Partner Matched';
+  dispatchedAt?: string;
+  totalBudgetRequested: number;
+  corporateSponsorshipTarget: number;
+  expressionsOfInterest: IndustryEOI[];
+  executiveSummary: string;
+}
+
 export interface Project {
   id: string; // PR-2026-0019
   challengeId: string; // CH-2026-00421
@@ -313,6 +355,9 @@ export interface Project {
     remaining: string;
     source: string;
   };
+  scopeReport?: ProjectScopeReport;
+  itemizedBudget?: BudgetItem[];
+  industryProposal?: IndustryProposal;
   milestones: Milestone[];
   tasks: Task[];
   prototypes: PrototypeVersion[];

@@ -43,6 +43,10 @@ export const ChallengeMarketplace: React.FC<ChallengeMarketplaceProps> = ({
     toggleSaveChallenge,
     getUniversityMatchScore,
     searchQuery,
+    currentUserRole,
+    assignedProjects,
+    setSelectedProjectId,
+    setActiveTab,
   } = useUniversity();
 
   const [selectedDomain, setSelectedDomain] = useState<string>('All');
@@ -368,51 +372,75 @@ export const ChallengeMarketplace: React.FC<ChallengeMarketplaceProps> = ({
                       onClick={() => setSelectedChallengeId(challenge.id)}
                       className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
                     >
-                      View Workspace
+                      View Problem Scope
                     </button>
 
-                    {/* Reject Dialog Trigger */}
-                    {!isAccepted && (
-                      <button
-                        onClick={() => setRejectingChallengeId(challenge.id)}
-                        className="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-colors"
-                        title="Decline / Reject Challenge"
-                      >
-                        Reject
-                      </button>
-                    )}
-
-                    {/* Evaluate Button */}
-                    <button
-                      onClick={() => {
-                        setSelectedChallengeId(challenge.id);
-                        setIsEvaluationModalOpen(true);
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors"
-                    >
-                      Evaluate Fit
-                    </button>
-
-                    {/* Accept / Form Team Hero Button */}
-                    {isAccepted ? (
-                      <button
-                        onClick={() => {
-                          setSelectedChallengeId(challenge.id);
-                          setIsTeamBuilderModalOpen(true);
-                        }}
-                        className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        <span>Team Assembled / View Team</span>
-                      </button>
+                    {/* Role-Based Assignment Actions */}
+                    {challenge.status === 'in_project' || isAccepted ? (
+                      (() => {
+                        const matchingAssigned = assignedProjects.find(
+                          (p) => p.challengeId === challenge.id
+                        );
+                        if (matchingAssigned) {
+                          return (
+                            <button
+                              onClick={() => {
+                                setSelectedProjectId(matchingAssigned.id);
+                                setActiveTab('research_projects');
+                              }}
+                              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span>Go to Assigned Project</span>
+                            </button>
+                          );
+                        }
+                        return (
+                          <span className="text-xs text-slate-500 font-semibold px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200">
+                            Assigned to Research Team
+                          </span>
+                        );
+                      })()
                     ) : (
-                      <button
-                        onClick={() => acceptChallenge(challenge.id)}
-                        className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Accept & Form AI Team</span>
-                      </button>
+                      <>
+                        {currentUserRole === 'leadership' ? (
+                          <>
+                            {/* Dean can reject or assign */}
+                            <button
+                              onClick={() => setRejectingChallengeId(challenge.id)}
+                              className="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-colors"
+                              title="Decline / Reject Challenge"
+                            >
+                              Reject
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setSelectedChallengeId(challenge.id);
+                                setIsTeamBuilderModalOpen(true);
+                              }}
+                              className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Assign Project & Allocate Team</span>
+                            </button>
+                          </>
+                        ) : currentUserRole === 'faculty' ? (
+                          <button
+                            onClick={() => {
+                              setSelectedChallengeId(challenge.id);
+                              setIsEvaluationModalOpen(true);
+                            }}
+                            className="px-3.5 py-1.5 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-800 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                          >
+                            <span>Evaluate & Propose to Dean</span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">
+                            Awaiting Dean assignment
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
